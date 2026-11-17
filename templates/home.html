@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Home · Exness Bot{% endblock %}
+{% block content %}
+<h1>Home</h1>
+<p class="sub">Where things stand right now.</p>
+
+{% if not s.configured %}
+<div class="card banner">
+  <h2>Step 1: add your Exness account</h2>
+  <p class="small" style="margin:0 0 12px;font-size:15px">The bot needs your MT5 account number, trading password and server before it can connect.</p>
+  <a class="btn btn-p" href="{{ url_for('settings') }}">Add account details</a>
+</div>
+{% endif %}
+
+<div class="grid">
+  <div class="card">
+    <div class="k">Account</div>
+    <div class="v mono">{{ s.login_masked }}</div>
+    <div class="small">Server: {{ s.server }}</div>
+  </div>
+
+  <div class="card">
+    <div class="k">MT5 connection</div>
+    <div class="v">
+      {% if not s.mt5_available %}<span class="pill warn">Demo mode</span>
+      {% elif s.mt5_connected %}<span class="pill ok">Connected</span>
+      {% else %}<span class="pill err">Not connected</span>{% endif %}
+    </div>
+    <div class="small">
+      {% if not s.mt5_available %}MetaTrader5 only runs on Windows, so no live data here.
+      {% elif s.mt5_error and not s.mt5_connected %}{{ s.mt5_error }}
+      {% elif s.mt5_connected %}Receiving market data.
+      {% else %}Check your details on the settings page.{% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="k">Bot engine</div>
+    <div class="v">{% if s.bot_running %}<span class="pill ok">Running</span>{% else %}<span class="pill warn">Stopped</span>{% endif %}</div>
+    <div class="small">Checks the market every few seconds.</div>
+  </div>
+
+  <div class="card">
+    <div class="k">Auto-trade</div>
+    <div class="v">{% if s.auto_trade %}<span class="pill err">ON</span>{% else %}<span class="pill ok">OFF</span>{% endif %}</div>
+    <div class="small">{% if s.auto_trade %}The bot can place real orders.{% else %}No orders are placed until you turn this on in the dashboard.{% endif %}</div>
+  </div>
+</div>
+
+<h2>What would you like to do?</h2>
+<div class="actions">
+  <a class="card action" href="{{ url_for('strategies_page') }}"><b>Strategies →</b><span>Choose which strategies to trade, edit them or create your own.</span></a>
+  <a class="card action" href="{{ url_for('dashboard') }}"><b>Open the dashboard →</b><span>Strategies, risk limits, open positions and controls.</span></a>
+  <a class="card action" href="{{ url_for('settings') }}"><b>Account settings →</b><span>Change your Exness login, password or server.</span></a>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Exness Bot{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+{% if session.get('auth') %}
+<header class="topbar"><div class="in">
+  <a class="brand" href="{{ url_for('home') }}">EXNESS <span>Bot</span></a>
+  <nav class="nav">
+    <a href="{{ url_for('home') }}" class="{{ 'on' if active == 'home' }}">Home</a>
+    <a href="{{ url_for('strategies_page') }}" class="{{ 'on' if active == 'strategies' }}">Strategies</a>
+    <a href="{{ url_for('dashboard') }}">Dashboard</a>
+    <a href="{{ url_for('settings') }}" class="{{ 'on' if active == 'settings' }}">Account settings</a>
+  </nav>
+  <form method="post" action="{{ url_for('logout') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="linkbtn" type="submit">Log out</button>
+  </form>
+</div></header>
+{% endif %}
+
+{% block body %}
+<main class="wrap">
+  {% for category, message in get_flashed_messages(with_categories=true) %}
+    <div class="flash {{ category }}">{{ message }}</div>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</main>
+{% endblock %}
+
+<div class="foot">Trading involves risk, and you can lose money. This is a personal project, not financial advice, and it is not affiliated with Exness.</div>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Problem · Exness Bot{% endblock %}
+{% block body %}
+<main class="narrow">
+  <h1>{{ err.code }} · {{ err.name }}</h1>
+  <p class="sub">{{ err.description }}</p>
+  <a class="btn btn-g" href="{{ url_for('home') }}">Back to home</a>
+</main>
+{% endblock %}

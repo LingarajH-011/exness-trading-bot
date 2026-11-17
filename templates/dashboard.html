@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Exness Multi-Strategy Bot</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+body{background:#060a14;color:#e0e4ef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+.card{background:#0d1321;border:1px solid #1a2540;border-radius:14px}
+.pill{padding:2px 10px;border-radius:99px;font-size:11px;font-weight:600}
+.pill-ok{background:#052e1d;color:#4ade80;border:1px solid #14532d}
+.pill-warn{background:#2d1a05;color:#fbbf24;border:1px solid #713f12}
+.pill-err{background:#2d0505;color:#f87171;border:1px solid #7f1d1d}
+.pill-info{background:#0a1a2e;color:#60a5fa;border:1px solid #1e3a8a}
+.bar-bg{background:#1a2540;border-radius:4px;height:6px;overflow:hidden}
+.bar-g{background:linear-gradient(90deg,#10b981,#34d399);height:100%;transition:width .3s}
+.bar-y{background:linear-gradient(90deg,#f59e0b,#fbbf24);height:100%;transition:width .3s}
+.bar-r{background:linear-gradient(90deg,#dc2626,#f87171);height:100%;transition:width .3s}
+.mono{font-family:'SF Mono',Monaco,monospace;font-size:13px}
+.label{font-size:10px;color:#6b7a99;text-transform:uppercase;letter-spacing:.7px}
+.btn{padding:7px 14px;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer}
+.btn-p{background:#2563eb;color:#fff}.btn-p:hover{background:#1d4ed8}
+.btn-d{background:#dc2626;color:#fff}.btn-d:hover{background:#b91c1c}
+.btn-g{background:#1a2540;color:#94a3b8;border:1px solid #253454}.btn-g:hover{background:#253454}
+table.dt{width:100%;font-size:12px}
+table.dt th{text-align:left;padding:6px 8px;color:#6b7a99;font-size:10px;text-transform:uppercase;border-bottom:1px solid #1a2540}
+table.dt td{padding:8px;border-bottom:1px solid #111c30}
+.strat-card{border-left:3px solid;padding-left:12px}
+.s-scalp{border-color:#f59e0b}.s-intra{border-color:#3b82f6}.s-swing{border-color:#8b5cf6}
+.s-news{border-color:#ef4444}.s-whale{border-color:#14b8a6}.s-fib{border-color:#f97316}
+.sig-buy{color:#4ade80}.sig-sell{color:#f87171}.sig-hold{color:#6b7a99}
+</style>
+</head>
+<body class="min-h-screen">
+<header class="border-b border-[#1a2540] sticky top-0 z-20 bg-[#060a14]/95 backdrop-blur">
+<div class="max-w-[1600px] mx-auto px-5 py-3 flex items-center justify-between">
+  <div>
+    <h1 class="text-lg font-bold">EXNESS <span class="text-blue-400">Multi-Strategy Bot</span></h1>
+    <div class="text-xs text-gray-500 mt-0.5">Server: <span class="mono text-gray-400">{{ server }}</span> · ${{ "{:,.0f}".format(account_size) }} · <span id="h-time" class="mono">—</span></div>
+  </div>
+  <div class="flex items-center gap-2">
+    <span id="h-mt5" class="pill pill-info">—</span>
+    <span id="h-mode" class="pill pill-info">—</span>
+    <span id="h-auto" class="pill pill-warn">auto: off</span>
+    <a href="/" class="btn btn-g">Home</a>
+    <a href="/settings" class="btn btn-g">Settings</a>
+    <form method="post" action="/logout" style="display:inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-g" type="submit">Log out</button>
+    </form>
+  </div>
+</div>
+</header>
+
+<main class="max-w-[1600px] mx-auto px-5 py-5 space-y-5">
+
+<!-- ROW 1: Account + Guardian -->
+<div class="grid grid-cols-12 gap-5">
+  <div class="col-span-12 lg:col-span-3 card p-4">
+    <div class="label">Account</div>
+    <div class="text-2xl font-bold mt-1" id="a-bal">$0</div>
+    <div class="text-xs text-gray-500">Balance</div>
+    <div class="grid grid-cols-2 gap-3 mt-4 text-sm">
+      <div><div class="label">Equity</div><div id="a-eq" class="font-semibold">$0</div></div>
+      <div><div class="label">Open PnL</div><div id="a-pnl" class="font-semibold">$0</div></div>
+      <div><div class="label">Today P&L</div><div id="a-today" class="font-semibold">$0</div></div>
+      <div><div class="label">Total P&L</div><div id="a-total" class="font-semibold">$0</div></div>
+    </div>
+  </div>
+
+  <div class="col-span-12 lg:col-span-5 card p-4">
+    <div class="flex items-center justify-between mb-3">
+      <div><div class="label">Risk Guardian</div><span id="g-state" class="pill pill-ok mt-1 inline-block">OK</span></div>
+      <div class="flex gap-2">
+        <button id="btn-start" class="btn btn-g">Start</button>
+        <button id="btn-auto" class="btn btn-p">Enable Auto</button>
+        <button id="btn-close" class="btn btn-d">Close All</button>
+      </div>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <div class="flex justify-between text-xs mb-1"><span>Daily Drawdown</span><span class="mono"><span id="g-dd">0%</span> / 4%</span></div>
+        <div class="bar-bg"><div id="g-dd-bar" class="bar-g" style="width:0%"></div></div>
+      </div>
+      <div>
+        <div class="flex justify-between text-xs mb-1"><span>Total Drawdown</span><span class="mono"><span id="g-tdd">0%</span> / 15%</span></div>
+        <div class="bar-bg"><div id="g-tdd-bar" class="bar-g" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div id="g-warn" class="mt-3 space-y-1"></div>
+  </div>
+
+  <div class="col-span-12 lg:col-span-4 card p-4">
+    <div class="label mb-2">Strategy Performance</div>
+    <div class="space-y-2" id="strat-perf">—</div>
+  </div>
+</div>
+
+<!-- ROW 2: Strategy Signals -->
+<div class="card p-4">
+  <div class="label mb-3">Live Strategy Signals <span class="text-gray-600 normal-case">(refreshes every 15s)</span></div>
+  <div class="overflow-x-auto"><table class="dt"><thead><tr>
+    <th>Strategy</th><th>Symbol</th><th class="text-right">Price</th><th class="text-right">RSI</th>
+    <th class="text-right">ATR</th><th class="text-center">Signal</th><th class="text-right">Score</th><th>Reason</th>
+  </tr></thead><tbody id="sig-tbody"><tr><td colspan="8" class="text-center text-gray-600 py-4">Loading…</td></tr></tbody></table></div>
+</div>
+
+<!-- ROW 3: Positions + Decisions -->
+<div class="grid grid-cols-12 gap-5">
+  <div class="col-span-12 lg:col-span-7 card p-4">
+    <div class="label mb-2">Open Positions</div>
+    <table class="dt"><thead><tr>
+      <th>Ticket</th><th>Strategy</th><th>Symbol</th><th>Side</th>
+      <th class="text-right">Vol</th><th class="text-right">Entry</th><th class="text-right">PnL</th>
+    </tr></thead><tbody id="pos-tbody"><tr><td colspan="7" class="text-center text-gray-600 py-4">No positions</td></tr></tbody></table>
+  </div>
+  <div class="col-span-12 lg:col-span-5 card p-4">
+    <div class="label mb-2">Recent Trades</div>
+    <div id="dec-list" class="space-y-2 max-h-80 overflow-y-auto">
+      <div class="text-gray-600 text-sm">No trades yet</div>
+    </div>
+  </div>
+</div>
+
+<!-- ROW 4: Charts -->
+<div class="grid grid-cols-12 gap-5">
+  <div class="col-span-12 lg:col-span-8 card p-4">
+    <div class="label mb-2">Daily P&L by Strategy</div>
+    <div style="height:220px"><canvas id="chart-pnl"></canvas></div>
+  </div>
+  <div class="col-span-12 lg:col-span-4 card p-4">
+    <div class="label mb-2">Stats</div>
+    <div class="space-y-2 text-sm">
+      <div class="flex justify-between"><span class="text-gray-500">Trading days</span><span id="m-days" class="mono">—</span></div>
+      <div class="flex justify-between"><span class="text-gray-500">Total trades</span><span id="m-trades" class="mono">—</span></div>
+      <div class="flex justify-between"><span class="text-gray-500">Win rate</span><span id="m-wr" class="mono">—</span></div>
+      <div class="flex justify-between"><span class="text-gray-500">Open positions</span><span id="m-pos" class="mono">—</span></div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+// If the login session has expired, send the user back to the sign-in page.
+const _fetch = window.fetch.bind(window);
+window.fetch = async (...a) => { const r = await _fetch(...a); if (r.status === 401) location.href = '/login'; return r; };
+const fmt$ = v => { const n=Number(v)||0; return (n<0?'-':'')+'$'+Math.abs(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); };
+const fmtP = v => (Number(v)||0).toFixed(2)+'%';
+let pnlChart = null;
+const stratColors = {scalping:'#f59e0b',intraday:'#3b82f6',swing:'#8b5cf6',news:'#ef4444',whale:'#14b8a6',fibonacci:'#f97316'};
+
+function render(s) {
+  if(!s||!Object.keys(s).length) return;
+  const a=s.account||{}, g=s.guardian||{};
+  $('h-time').textContent = s.last_update ? new Date(s.last_update).toLocaleTimeString() : '—';
+  $('h-mt5').textContent = s.mt5_connected?'MT5 connected':'disconnected';
+  $('h-mt5').className = 'pill '+(s.mt5_connected?'pill-ok':'pill-warn');
+  $('h-mode').textContent = 'mode: '+(s.mode||'-');
+  $('h-mode').className = 'pill pill-info';
+  $('h-auto').textContent = 'auto: '+(s.auto_trade?'on':'off');
+  $('h-auto').className = 'pill '+(s.auto_trade?'pill-ok':'pill-warn');
+  $('btn-auto').textContent = s.auto_trade?'Disable Auto':'Enable Auto';
+
+  // Account
+  $('a-bal').textContent = fmt$(a.balance);
+  $('a-eq').textContent = fmt$(a.equity);
+  const opnl = (a.equity||0)-(a.balance||0);
+  $('a-pnl').textContent = fmt$(opnl);
+  $('a-pnl').className = 'font-semibold '+(opnl>=0?'text-green-400':'text-red-400');
+  $('a-today').textContent = fmt$(g.today_pnl);
+  $('a-today').className = 'font-semibold '+(g.today_pnl>=0?'text-green-400':'text-red-400');
+  $('a-total').textContent = fmt$(g.total_pnl);
+  $('a-total').className = 'font-semibold '+(g.total_pnl>=0?'text-green-400':'text-red-400');
+
+  // Guardian
+  const stMap={ok:'pill-ok',warning:'pill-warn',frozen:'pill-err',emergency:'pill-err',disabled:'pill-err'};
+  $('g-state').textContent = (g.state||'—').toUpperCase();
+  $('g-state').className = 'pill '+(stMap[g.state]||'pill-info');
+  const ddp = Math.min(100,Math.max(0,(g.today_dd_pct||0)/4*100));
+  $('g-dd').textContent = fmtP(g.today_dd_pct);
+  $('g-dd-bar').style.width = ddp+'%';
+  $('g-dd-bar').className = ddp>80?'bar-r':ddp>50?'bar-y':'bar-g';
+  const tdp = Math.min(100,Math.max(0,(g.total_dd_pct||0)/15*100));
+  $('g-tdd').textContent = fmtP(g.total_dd_pct);
+  $('g-tdd-bar').style.width = tdp+'%';
+  $('g-tdd-bar').className = tdp>80?'bar-r':tdp>50?'bar-y':'bar-g';
+  $('g-warn').innerHTML = (g.warnings||[]).map(w =>
+    `<div class="text-xs px-2 py-1.5 rounded ${w.includes('limit')?'bg-red-900/30 text-red-300 border border-red-800':'bg-yellow-900/30 text-yellow-300 border border-yellow-800'}">${w}</div>`
+  ).join('');
+
+  // Strategy performance
+  const ss = s.strategy_stats||{};
+  $('strat-perf').innerHTML = Object.entries(ss).map(([k,v]) =>
+    `<div class="flex items-center justify-between text-xs">
+      <span class="flex items-center gap-1.5"><span style="width:8px;height:8px;border-radius:2px;background:${stratColors[k]||'#666'}"></span>${(window.NAMES||{})[k]||k}</span>
+      <span class="mono">${v.trades||0} trades · ${v.signals||0} signals</span>
+    </div>`
+  ).join('');
+
+  // Signals table
+  const strats = s.strategies||{};
+  const entries = Object.entries(strats).filter(([,v])=>v.status==='ok');
+  $('sig-tbody').innerHTML = entries.length ? entries.map(([k,d]) => {
+    const sc = d.signal==='buy'?'pill-ok':d.signal==='sell'?'pill-err':'pill-info';
+    return `<tr>
+      <td><span style="color:${stratColors[d.strategy]||'#999'};font-weight:600">${(window.NAMES||{})[d.strategy]||d.strategy}</span></td>
+      <td class="font-semibold">${d.symbol}</td>
+      <td class="mono text-right">${Number(d.price||0).toFixed(5)}</td>
+      <td class="mono text-right">${Number(d.rsi||0).toFixed(1)}</td>
+      <td class="mono text-right">${Number(d.atr||0).toFixed(5)}</td>
+      <td class="text-center"><span class="pill ${sc}">${d.signal.toUpperCase()}</span></td>
+      <td class="mono text-right">${Number(d.score||0).toFixed(3)}</td>
+      <td class="text-xs text-gray-400">${d.reason||''}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="8" class="text-center text-gray-600 py-4">No active signals</td></tr>';
+
+  // Positions
+  const pos = s.positions||[];
+  $('pos-tbody').innerHTML = pos.length ? pos.map(p => {
+    const pc = p.profit>=0?'text-green-400':'text-red-400';
+    const strat = (p.comment||'').replace('ex_','');
+    return `<tr>
+      <td class="mono text-xs">${p.ticket}</td>
+      <td><span style="color:${stratColors[strat]||'#999'}">${strat||'—'}</span></td>
+      <td class="font-semibold">${p.symbol}</td>
+      <td><span class="pill ${p.side==='buy'?'pill-ok':'pill-err'}">${p.side.toUpperCase()}</span></td>
+      <td class="mono text-right">${p.volume}</td>
+      <td class="mono text-right">${Number(p.price_open||0).toFixed(5)}</td>
+      <td class="mono text-right ${pc}">${fmt$(p.profit)}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="7" class="text-center text-gray-600 py-4">No positions</td></tr>';
+
+  // Decisions
+  const decs = s.decisions||[];
+  $('dec-list').innerHTML = decs.length ? decs.map(d => {
+    const ts = d.time ? new Date(d.time).toLocaleTimeString() : '';
+    return `<div class="border border-[#1a2540] rounded p-2">
+      <div class="flex justify-between items-center text-xs">
+        <span><span style="color:${stratColors[d.strategy]||'#999'};font-weight:600">${(window.NAMES||{})[d.strategy]||d.strategy}</span> · ${d.symbol} · <span class="sig-${d.signal}">${d.signal.toUpperCase()}</span></span>
+        <span class="text-gray-500 mono">${ts}</span>
+      </div>
+      <div class="text-xs text-gray-500 mt-0.5">Lot ${d.lot} @ ${Number(d.entry||0).toFixed(5)} · Risk ${fmt$(d.risk)}</div>
+    </div>`;
+  }).join('') : '<div class="text-gray-600 text-sm">No trades yet</div>';
+
+  // Stats
+  $('m-days').textContent = g.trading_days||0;
+  $('m-trades').textContent = g.total_trades||0;
+  $('m-wr').textContent = (g.win_rate||0)+'%';
+  $('m-pos').textContent = g.open_positions||0;
+}
+
+async function tick() {
+  try {
+    const r = await fetch('/api/snapshot');
+    const j = await r.json(); window.NAMES = j.strategy_names || {}; render(j);
+  } catch(e) { console.error(e); }
+  try {
+    const r = await fetch('/api/guardian');
+    const g = await r.json();
+    renderChart(g.daily_stats||[], g.strategy_stats||{});
+  } catch(e) {}
+}
+
+function renderChart(stats, ss) {
+  if (!stats.length) return;
+  const labels = stats.map(s => s.date.slice(5));
+  const pnls = stats.map(s => s.realized_pnl);
+  const ctx = $('chart-pnl');
+  if (pnlChart) pnlChart.destroy();
+  const isDark = true;
+  pnlChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: pnls, backgroundColor: pnls.map(p=>p>=0?'#10b981':'#dc2626'), borderRadius:3 }] },
+    options: { maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales: { x:{grid:{color:'#1a2540'},ticks:{color:'#6b7a99'}}, y:{grid:{color:'#1a2540'},ticks:{color:'#6b7a99',callback:v=>'$'+v}} }}
+  });
+}
+
+// Controls
+async function post(url, body) { return (await fetch(url, {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':'{{ csrf_token() }}'},body:body?JSON.stringify(body):'{}'})).json(); }
+$('btn-auto').onclick = async () => { await post('/api/control/auto_trade',{enable:!($('h-auto').textContent.includes('on'))}); tick(); };
+$('btn-close').onclick = async () => { if(!confirm('Close ALL?'))return; const r=await post('/api/control/close_all'); alert('Closed '+(r.closed||0)); tick(); };
+$('btn-start').onclick = async () => { await post('/api/control/start'); tick(); };
+
+tick();
+setInterval(tick, 5000);
+</script>
+</body>
+</html>

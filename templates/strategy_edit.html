@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ 'New strategy' if not sid else 'Edit strategy' }} · Exness Bot{% endblock %}
+{% block content %}
+<h1>{{ 'Create a strategy' if not sid else 'Edit ' ~ (builtin.name if builtin else v.name) }}</h1>
+<p class="sub">{% if builtin %}{{ builtin.about }} The entry rules are built in; you can change the risk and the exits.{% else %}A simple rule-based strategy. It is created switched off.{% endif %}</p>
+{% for e in errors %}<div class="flash error">{{ e }}</div>{% endfor %}
+
+<form class="card stack" method="post" autocomplete="off">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if is_custom %}
+  <label for="name" style="margin-top:0">Name</label>
+  <input id="name" name="name" type="text" maxlength="40" value="{{ v.name }}" required>
+
+  <label for="symbols">Symbols</label>
+  <input id="symbols" name="symbols" type="text" maxlength="80" value="{{ v.symbols }}" placeholder="EURUSD, XAUUSD" required>
+  <p class="hint">Up to five, separated by commas. Use the names exactly as your Exness account shows them.</p>
+
+  <label for="timeframe">Timeframe</label>
+  <select id="timeframe" name="timeframe">{% for t in timeframes %}<option {{ 'selected' if t == v.timeframe }}>{{ t }}</option>{% endfor %}</select>
+
+  <label for="rule">Rule</label>
+  <select id="rule" name="rule">{% for k, d in rules.items() %}<option value="{{ k }}" {{ 'selected' if k == v.rule }}>{{ d }}</option>{% endfor %}</select>
+
+  <div id="nums" class="two">
+    <div><label for="p1">First number</label><input id="p1" name="p1" type="number" step="any" value="{{ v.p1 }}" required></div>
+    <div><label for="p2">Second number</label><input id="p2" name="p2" type="number" step="any" value="{{ v.p2 }}"></div>
+  </div>
+  <p id="numhint" class="hint">EMA crossover: fast and slow EMA lengths (e.g. 9 and 21). RSI reversal: low and high level (e.g. 30 and 70). Breakout: look-back candles in the first box, second is ignored.</p>
+
+  <div id="codebox" style="display:none">
+    <label for="code">Your Python code</label>
+    {% if not code_ok %}<div class="flash warn">Code strategies are switched off on this server because it can be reached from other computers. Set <b>ALLOW_CODE_STRATEGIES=1</b> to allow them.</div>{% endif %}
+    <textarea id="code" name="code" spellcheck="false" rows="18" maxlength="8000">{{ v.code }}</textarea>
+    <p class="hint">Define <b>signal(df)</b>. Saving runs it once on test data and tells you about any error. It runs in a separate process with a time limit; imports, file access and similar are blocked. This is a safety net, not a vault: only run code you wrote or trust.
+    Pine Script cannot run here (it only works inside TradingView), so rewrite the idea in Python. <code>ta.ema(close, 9)</code> becomes <code>ema(df["close"], 9)</code> and <code>ta.crossover(a, b)</code> becomes <code>crossed_above(a, b)</code>.</p>
+  </div>
+  <script>
+  (function(){
+    var rule = document.getElementById('rule');
+    function sync(){
+      var py = rule.value === 'python';
+      document.getElementById('codebox').style.display = py ? 'block' : 'none';
+      document.getElementById('nums').style.display = py ? 'none' : 'grid';
+      document.getElementById('numhint').style.display = py ? 'none' : 'block';
+      document.getElementById('p1').required = !py;
+    }
+    rule.addEventListener('change', sync); sync();
+    document.getElementById('code').addEventListener('keydown', function(e){
+      if (e.key === 'Tab') { e.preventDefault(); var t=this, s=t.selectionStart; t.value=t.value.slice(0,s)+'    '+t.value.slice(t.selectionEnd); t.selectionStart=t.selectionEnd=s+4; }
+    });
+  })();
+  </script>
+  {% endif %}
+
+  <div class="two">
+    <div><label for="risk_pct" {% if not is_custom %}style="margin-top:0"{% endif %}>Risk per trade (%)</label>
+      <input id="risk_pct" name="risk_pct" type="number" step="any" min="0.1" max="2" value="{{ v.risk_pct }}" required></div>
+    <div></div>
+  </div>
+  <div class="two">
+    <div><label for="sl">Stop loss ({{ 'pips' if unit == 'pips' else '× ATR' }})</label>
+      <input id="sl" name="sl" type="number" step="any" value="{{ v.sl }}" required></div>
+    <div><label for="tp">Take profit ({{ 'pips' if unit == 'pips' else '× ATR' }})</label>
+      <input id="tp" name="tp" type="number" step="any" value="{{ v.tp }}" required></div>
+  </div>
+  <p class="hint">Risk is the share of your balance you accept losing if the stop loss is hit. Keep it small: 0.5 to 1 is common.</p>
+
+  <div class="row">
+    <button class="btn btn-p" type="submit">Save</button>
+    <a class="btn btn-g" href="{{ url_for('strategies_page') }}">Cancel</a>
+  </div>
+</form>
+
+{% if sid %}
+<div class="row" style="margin-top:14px">
+{% if is_custom %}
+  <form method="post" action="{{ url_for('strategy_delete', sid=sid) }}" onsubmit="return confirm('Delete this strategy?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-d" type="submit">Delete strategy</button></form>
+{% else %}
+  <form method="post" action="{{ url_for('strategy_reset', sid=sid) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-d" type="submit">Reset to original values</button></form>
+{% endif %}
+</div>
+{% endif %}
+{% endblock %}

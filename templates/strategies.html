@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Strategies · Exness Bot{% endblock %}
+{% block content %}
+<h1>Strategies</h1>
+<p class="sub">Tick the strategies the bot may use. Unticked ones are ignored. Trades that are already open keep their stop loss and take profit.</p>
+
+<form method="post" action="{{ url_for('strategies_select') }}" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="srows">
+    {% for r in rows %}
+    <div class="srow">
+      <label class="check"><input type="checkbox" name="on" value="{{ r.id }}" {{ 'checked' if r.enabled }}>
+        <span class="sname">{{ r.name }}</span></label>
+      <span class="small">{{ r.about }} · {{ r.tf }}{% if r.kind == 'custom' %} · <span class="pill warn">custom</span>{% endif %}{% if r.edited %} · edited{% endif %}{% if r.code %} · <span class="pill ok">Python</span>{% endif %}{% if r.error %}<br><span style="color:var(--red)">Code error: {{ r.error }}</span>{% endif %}</span>
+      <a class="btn btn-g sm" href="{{ url_for('strategy_edit', sid=r.id) }}">Edit</a>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="row">
+    <button class="btn btn-p" type="submit">Save selection</button>
+    <a class="btn btn-g" href="{{ url_for('strategy_new') }}">+ Create new strategy</a>
+  </div>
+  <p class="hint">{{ on_count }} of {{ rows|length }} switched on. Nothing trades until Auto-trade is turned on in the dashboard.</p>
+</form>
+{% endblock %}

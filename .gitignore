@@ -1,0 +1,22 @@
+# Secrets and account data: NEVER commit
+.env
+*.enc
+.secret_key
+.flask_secret
+auth.json
+data/*
+!data/.gitkeep
+logs/*
+!logs/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

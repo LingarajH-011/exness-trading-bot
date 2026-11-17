@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Account settings · Exness Bot{% endblock %}
+{% block content %}
+<h1>Account settings</h1>
+<p class="sub">Enter the details of the Exness MT5 account the bot should use.</p>
+
+<form class="card stack" method="post" autocomplete="off">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <label for="login" style="margin-top:0">MT5 account number</label>
+  <input id="login" name="login" type="text" inputmode="numeric" pattern="[0-9]{1,12}" maxlength="12"
+         value="{{ v.login }}" placeholder="e.g. 12345678" required>
+
+  <label for="password">MT5 trading password</label>
+  <input id="password" name="password" type="password" maxlength="128" autocomplete="new-password"
+         placeholder="{{ 'Saved. Leave blank to keep it.' if has_password else 'Your MT5 trading password' }}"
+         {{ '' if has_password else 'required' }}>
+  <p class="hint">This is the password for the trading terminal, not your Exness website login. It is stored encrypted and never shown again.</p>
+
+  <label for="server">Server</label>
+  <input id="server" name="server" type="text" list="server-list" maxlength="63" value="{{ v.server }}" required>
+  <datalist id="server-list">{% for sv in servers %}<option value="{{ sv }}">{% endfor %}</datalist>
+  <p class="hint">Copy it exactly from MT5 (File → Login to Trade Account). You can type any name, even if it is not in the list: clear the box and start typing, e.g. <b>Exness-MT5Trial11</b>. A server with “Trial” in its name is a demo account.</p>
+
+  <details>
+    <summary>Advanced: MT5 terminal path (optional)</summary>
+    <label for="path">Path to terminal64.exe</label>
+    <input id="path" name="path" type="text" maxlength="260" value="{{ v.path }}"
+           placeholder="C:\Program Files\MetaTrader 5 EXNESS\terminal64.exe">
+    <p class="hint">Only needed if you have more than one MT5 installed.</p>
+  </details>
+
+  <div class="row">
+    <button class="btn btn-p" type="submit" name="action" value="save_connect">Save and connect</button>
+    <button class="btn btn-g" type="submit" name="action" value="save">Save only</button>
+  </div>
+</form>
+
+<div class="grid" style="margin-top:22px">
+  <div class="card">
+    <div class="k">Current status</div>
+    <div class="v">
+      {% if not s.mt5_available %}<span class="pill warn">Demo mode</span>
+      {% elif s.mt5_connected %}<span class="pill ok">Connected</span>
+      {% else %}<span class="pill err">Not connected</span>{% endif %}
+    </div>
+    <div class="small">
+      {% if not s.mt5_available %}MetaTrader5 only runs on Windows. On this machine the bot can save your details but cannot trade.
+      {% elif s.mt5_error and not s.mt5_connected %}{{ s.mt5_error }}{% endif %}
+    </div>
+  </div>
+  <div class="card">
+    <div class="k">Saved account</div>
+    <div class="v mono">{{ s.login_masked }}</div>
+    {% if has_password %}
+    <form method="post" onsubmit="return confirm('Remove the saved account details from this machine?');" style="margin-top:10px">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-d" type="submit" name="action" value="clear">Remove saved details</button>
+    </form>
+    {% else %}<div class="small">Nothing saved yet.</div>{% endif %}
+  </div>
+</div>
+{% endblock %}

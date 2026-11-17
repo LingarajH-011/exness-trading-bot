@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}First-time setup · Exness Bot{% endblock %}
+{% block body %}
+<main class="narrow">
+  <h1>First-time setup</h1>
+  <p class="sub">Create the password that protects this dashboard.</p>
+  {% for category, message in get_flashed_messages(with_categories=true) %}
+    <div class="flash {{ category }}">{{ message }}</div>
+  {% endfor %}
+  <form class="card stack" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="setup_code" style="margin-top:0">Setup code</label>
+    <input id="setup_code" name="setup_code" type="text" autocomplete="off" autofocus required>
+    <p class="hint">Shown once in the terminal window where you started the app. This stops strangers from claiming a new server.</p>
+
+    <label for="password">New password</label>
+    <input id="password" name="password" type="password" minlength="{{ min_len }}" autocomplete="new-password" required>
+    <p class="hint">At least {{ min_len }} characters.</p>
+
+    <label for="confirm">Repeat password</label>
+    <input id="confirm" name="confirm" type="password" minlength="{{ min_len }}" autocomplete="new-password" required>
+
+    <div class="row"><button class="btn btn-p" type="submit">Create password</button></div>
+  </form>
+</main>
+{% endblock %}

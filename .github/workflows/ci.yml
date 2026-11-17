@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - name: Lint (new web/security code)
+        run: flake8 app.py core/auth.py core/credentials.py core/strategy_store.py core/code_worker.py core/code_runner.py strategies/custom.py tests --max-line-length=140
+      - name: Tests
+        run: pytest tests -q
+      - name: Secret check (nothing sensitive may be tracked)
+        run: |
+          if git ls-files | grep -Eq '(^|/)\.env$|\.enc$|\.secret_key$|\.flask_secret$|auth\.json$|^logs/.+\.log$'; then
+            echo "A secret or log file is tracked"; exit 1; fi
